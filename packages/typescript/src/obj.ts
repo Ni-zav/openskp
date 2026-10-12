@@ -14,6 +14,27 @@ function sanitizeMaterialName(name: string): string {
  * @param scene The result of SkpFile.buildScene()
  * @returns The formatted MTL text string.
  */
+function materialNames(scene: SkpScene): string[] {
+  const bases = scene.gltfMaterials.map((mat: any, i) =>
+    sanitizeMaterialName(mat?.name || `Material_${i}`)
+  );
+  const reserved = new Set(bases);
+  const used = new Set<string>();
+  return bases.map((base, i) => {
+    let name = base;
+    if (used.has(name)) {
+      const stem = `${base}_${i + 1}`;
+      name = stem;
+      let suffix = 1;
+      while (used.has(name) || reserved.has(name)) {
+        name = `${stem}_${suffix++}`;
+      }
+    }
+    used.add(name);
+    return name;
+  });
+}
+
 export function toMTL(scene: SkpScene): string {
   const lines: string[] = [
     '# OpenSKP MTL Material Library Export',
@@ -21,10 +42,10 @@ export function toMTL(scene: SkpScene): string {
     '',
   ];
 
+  const names = materialNames(scene);
   for (let idx = 0; idx < scene.gltfMaterials.length; idx++) {
     const mat = scene.gltfMaterials[idx];
-    const rawName = (mat as any).name || `Material_${idx}`;
-    const matName = sanitizeMaterialName(rawName);
+    const matName = names[idx];
 
     const pbr = (mat as any).pbrMetallicRoughness || {};
     const baseColor = pbr.baseColorFactor || [0.8, 0.8, 0.8, 1.0];
@@ -74,6 +95,7 @@ export function toOBJ(scene: SkpScene, mtlFilename?: string): string {
 
   lines.push('');
 
+  const names = materialNames(scene);
   let vertOffset = 1;
   let uvOffset = 1;
   let normOffset = 1;
@@ -106,8 +128,7 @@ export function toOBJ(scene: SkpScene, mtlFilename?: string): string {
 
     const matIdx = prim.materialIndex;
     if (matIdx >= 0 && matIdx < scene.gltfMaterials.length) {
-      const matRaw = (scene.gltfMaterials[matIdx] as any).name || `Material_${matIdx}`;
-      lines.push(`usemtl ${sanitizeMaterialName(matRaw)}`);
+      lines.push(`usemtl ${names[matIdx]}`);
     }
 
     const triCount = Math.floor(prim.indices.length / 3);
