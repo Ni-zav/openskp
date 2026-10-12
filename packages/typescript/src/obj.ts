@@ -8,12 +8,6 @@ function sanitizeMaterialName(name: string): string {
   return clean || 'default_material';
 }
 
-/**
- * Serialize a baked SkpScene's materials into Wavefront MTL text format.
- *
- * @param scene The result of SkpFile.buildScene()
- * @returns The formatted MTL text string.
- */
 function materialNames(scene: SkpScene): string[] {
   const bases = scene.gltfMaterials.map((mat: any, i) =>
     sanitizeMaterialName(mat?.name || `Material_${i}`)
@@ -35,6 +29,12 @@ function materialNames(scene: SkpScene): string[] {
   });
 }
 
+/**
+ * Serialize a baked SkpScene's materials into Wavefront MTL text format.
+ *
+ * @param scene The result of SkpFile.buildScene()
+ * @returns The formatted MTL text string.
+ */
 export function toMTL(scene: SkpScene): string {
   const lines: string[] = [
     '# OpenSKP MTL Material Library Export',
