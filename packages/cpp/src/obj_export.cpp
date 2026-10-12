@@ -28,8 +28,8 @@ static std::vector<std::string> unique_material_names(const Scene& scene) {
   bases.reserve(scene.gltf_materials.size());
   for (std::size_t i = 0; i < scene.gltf_materials.size(); ++i) {
     const auto& mat = scene.gltf_materials[i];
-    bases.push_back(sanitize_material_name(mat.name.empty() ? "Material_" + std::to_string(i)
-                                                             : mat.name));
+    const std::string raw_name = mat.name.empty() ? "Material_" + std::to_string(i) : mat.name;
+    bases.push_back(sanitize_material_name(raw_name));
   }
 
   const std::unordered_set<std::string> reserved(bases.begin(), bases.end());
