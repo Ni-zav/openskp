@@ -7,7 +7,6 @@ String _sanitizeMaterialName(String name) {
   return clean.isEmpty ? 'default_material' : clean;
 }
 
-/// Convert a baked [Scene]'s materials into Wavefront MTL text representation.
 List<String> _materialNames(Scene scene) {
   final bases = <String>[];
   for (var i = 0; i < scene.gltfMaterials.length; i++) {
@@ -35,6 +34,7 @@ List<String> _materialNames(Scene scene) {
   return names;
 }
 
+/// Convert a baked [Scene]'s materials into Wavefront MTL text representation.
 String toMtl(Scene scene) {
   final buffer = StringBuffer();
   buffer.writeln('# OpenSKP MTL Material Library Export');
