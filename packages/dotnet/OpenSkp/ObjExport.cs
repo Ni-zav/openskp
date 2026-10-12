@@ -19,11 +19,6 @@ namespace OpenSkp
             return string.IsNullOrEmpty(clean) ? "default_material" : clean;
         }
 
-        /// <summary>
-        /// Convert a baked <see cref="Scene"/>'s materials into Wavefront MTL text format.
-        /// </summary>
-        /// <param name="scene">The baked scene returned by <see cref="SkpFile.BuildScene(string, SkpParseOptions?)"/>.</param>
-        /// <returns>The formatted Wavefront MTL text string.</returns>
         private static List<string> MaterialNames(Scene scene)
         {
             var bases = new List<string>();
@@ -57,6 +52,11 @@ namespace OpenSkp
             return names;
         }
 
+        /// <summary>
+        /// Convert a baked <see cref="Scene"/>'s materials into Wavefront MTL text format.
+        /// </summary>
+        /// <param name="scene">The baked scene returned by <see cref="SkpFile.BuildScene(string, SkpParseOptions?)"/>.</param>
+        /// <returns>The formatted Wavefront MTL text string.</returns>
         public static string ToMtl(Scene scene)
         {
             if (scene == null) throw new ArgumentNullException(nameof(scene));
