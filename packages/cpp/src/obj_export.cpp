@@ -1,6 +1,7 @@
 #include "openskp/obj_export.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
