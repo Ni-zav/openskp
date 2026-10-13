@@ -46,10 +46,12 @@ namespace OpenSkp
                 {
                     if (pbr.TryGetValue("baseColorFactor", out object? colObj))
                     {
-                        if (colObj is System.Collections.IEnumerable values)
+                        if (colObj is System.Collections.IEnumerable values && colObj is not string)
                         {
                             // SceneBuilder creates double[] baseColorFactor values.
                             // Also accept float[] and lists supplied by API callers.
+                            // Unsupported nonnumeric elements still fail conversion, as they
+                            // did in the previous List<object> handling.
                             var channels = new List<float>();
                             foreach (var value in values)
                             {
