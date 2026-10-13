@@ -30,9 +30,10 @@ namespace OpenSkp.Tests
         private static void AssertColors(object factor, string diffuse, string alpha)
         {
             string mtl = ExportWithColorFactor(factor);
-            Assert.Contains("newmtl ColorTest", mtl);
-            Assert.Contains($"Kd {diffuse}", mtl);
-            Assert.Contains($"d {alpha}", mtl);
+            string[] lines = mtl.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            Assert.Contains("newmtl ColorTest", lines);
+            Assert.Contains($"Kd {diffuse}", lines);
+            Assert.Contains($"d {alpha}", lines);
         }
 
         [Fact]
