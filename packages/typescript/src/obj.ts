@@ -31,6 +31,8 @@ function materialNames(scene: SkpScene): string[] {
 
 /**
  * Serialize a baked SkpScene's materials into Wavefront MTL text format.
+ * Names are case-sensitive. Collisions gain _<1-based material index>
+ * and, when needed, an additional _<n> suffix. Other names stay unchanged.
  *
  * @param scene The result of SkpFile.buildScene()
  * @returns The formatted MTL text string.
@@ -78,6 +80,8 @@ export function toMTL(scene: SkpScene): string {
 
 /**
  * Serialize a baked SkpScene into Wavefront OBJ text format.
+ * Names are case-sensitive. Collisions gain _<1-based material index>
+ * and, when needed, an additional _<n> suffix. Other names stay unchanged.
  *
  * @param scene The result of SkpFile.buildScene()
  * @param mtlFilename Optional companion .mtl filename to reference.
