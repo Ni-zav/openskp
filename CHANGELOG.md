@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — .NET: OBJ/MTL export retains SceneBuilder material colors and alpha (#422)
+
+The .NET SceneBuilder stores glTF `baseColorFactor` values as `double[]`,
+but the OBJ/MTL exporter only read `List<float>` and `List<object>`.
+As a result, exported materials were gray (`Kd 0.8 0.8 0.8`) and
+transparency was lost (`d 1.0`). The exporter now reads numeric
+channels from arrays and compatible lists, including `double[]` and
+`float[]`, while preserving the existing defaults for unsupported
+string values and colors with fewer than three channels. RGB-only
+factors remain opaque unless an alpha channel is supplied.
+
 ### Fixed — all five legacy readers: SketchUp 3 files with fewer than two materials now parse
 
 A legacy file with zero or one material can't use the two-material bootstrap for
