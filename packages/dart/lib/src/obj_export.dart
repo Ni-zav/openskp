@@ -35,6 +35,8 @@ List<String> _materialNames(Scene scene) {
 }
 
 /// Convert a baked [Scene]'s materials into Wavefront MTL text representation.
+/// Names are case-sensitive. Collisions gain _<1-based material index>
+/// and, when needed, an additional _<n> suffix. Other names stay unchanged.
 String toMtl(Scene scene) {
   final buffer = StringBuffer();
   buffer.writeln('# OpenSKP MTL Material Library Export');
@@ -74,6 +76,8 @@ String toMtl(Scene scene) {
 }
 
 /// Convert a baked [Scene] into Wavefront OBJ text representation.
+/// Names are case-sensitive. Collisions gain _<1-based material index>
+/// and, when needed, an additional _<n> suffix. Other names stay unchanged.
 String toObj(Scene scene, {String? mtlFilename}) {
   final buffer = StringBuffer();
   buffer.writeln('# OpenSKP OBJ Export');
