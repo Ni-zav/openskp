@@ -49,8 +49,7 @@ TEST(ObjExport, SanitizedMaterialNamesAreUniqueAndMatchObjReferences) {
     const auto obj_names = material_references(to_obj(scene), "usemtl ");
     EXPECT_EQ(mtl_names, expected);
     EXPECT_EQ(obj_names, expected);
-    EXPECT_EQ(std::set<std::string>(mtl_names.begin(), mtl_names.end()).size(),
-              mtl_names.size());
+    EXPECT_EQ(std::set<std::string>(mtl_names.begin(), mtl_names.end()).size(), mtl_names.size());
   }
 }
 
