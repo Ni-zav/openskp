@@ -11,28 +11,46 @@ namespace OpenSkp.Tests
         [Fact]
         public void ObjAndMtlNamesStayUniqueAfterSanitizing()
         {
-            string[] raw = { "Wood/Oak", "Wood_Oak", "Wood_Oak_2" };
-            var scene = new Scene
+            var scenarios = new (string?[] Raw, string[] Expected)[]
             {
-                GltfMaterials = raw.Select(name => (object)new Dictionary<string, object>
-                {
-                    ["name"] = name
-                }).ToList(),
-                GlbPrimitives = raw.Select((name, i) => new GlbPrimitive
-                {
-                    GeomName = name,
-                    MaterialIndex = i,
-                    Positions = new float[] { 0, 0, 0, 1, 0, 0, 0, 1, 0 },
-                    Indices = new uint[] { 0, 1, 2 }
-                }).ToList()
+                (new[] { "Wood/Oak", "Wood_Oak", "Wood_Oak_2" },
+                    new[] { "Wood_Oak", "Wood_Oak_2_1", "Wood_Oak_2" }),
+                (new[] { "Oak", "Pine" }, new[] { "Oak", "Pine" }),
+                (new[] { "A", "A", "A" }, new[] { "A", "A_2", "A_3" }),
+                (new string?[] { "Material_1", null }, new[] { "Material_1", "Material_1_2" }),
+                (new[] { " ", "   " }, new[] { "default_material", "default_material_2" }),
+                (new[] { "!!!", "???" }, new[] { "___", "____2" }),
+                (new[] { "Oak", "oak" }, new[] { "Oak", "oak" })
             };
 
-            string[] expected = { "Wood_Oak", "Wood_Oak_2_1", "Wood_Oak_2" };
-            string[] lines(string input, string prefix) =>
-                input.Split('\n').Where(line => line.StartsWith(prefix, StringComparison.Ordinal))
-                    .Select(line => line.Substring(prefix.Length)).ToArray();
-            Assert.Equal(expected, lines(ObjExport.ToMtl(scene), "newmtl "));
-            Assert.Equal(expected, lines(ObjExport.ToObj(scene), "usemtl "));
+            foreach (var (raw, expected) in scenarios)
+            {
+                var scene = new Scene
+                {
+                    GltfMaterials = raw.Select(name => (object)(name == null
+                        ? new Dictionary<string, object>()
+                        : new Dictionary<string, object> { ["name"] = name })).ToList(),
+                    GlbPrimitives = raw.Select((name, i) => new GlbPrimitive
+                    {
+                        GeomName = $"part{i}",
+                        MaterialIndex = i,
+                        Positions = new float[] { 0, 0, 0, 1, 0, 0, 0, 1, 0 },
+                        Indices = new uint[] { 0, 1, 2 }
+                    }).ToList()
+                };
+
+                // AppendLine emits CRLF on Windows; normalize assertions, not the exporter.
+                string[] references(string input, string prefix) =>
+                    input.Split('\n').Select(line => line.TrimEnd('\r'))
+                        .Where(line => line.StartsWith(prefix, StringComparison.Ordinal))
+                        .Select(line => line.Substring(prefix.Length)).ToArray();
+
+                string[] mtlNames = references(ObjExport.ToMtl(scene), "newmtl ");
+                string[] objNames = references(ObjExport.ToObj(scene), "usemtl ");
+                Assert.Equal(expected, mtlNames);
+                Assert.Equal(expected, objNames);
+                Assert.Equal(mtlNames.Length, new HashSet<string>(mtlNames, StringComparer.Ordinal).Count);
+            }
         }
     }
 }
