@@ -21,7 +21,11 @@ def sanitize_material_name(name: str) -> str:
 
 
 def _material_names(scene: Scene) -> list[str]:
-    """Assign unique MTL identifiers, preserving original names when possible."""
+    """Assign unique, case-sensitive MTL identifiers without stealing reserved names.
+
+    A colliding name gains ``_<1-based material index>`` and, if needed,
+    an additional ``_<n>`` suffix. Non-colliding names stay unchanged.
+    """
     bases = [
         sanitize_material_name(mat.get("name") or f"Material_{i}")
         for i, mat in enumerate(scene.gltf_materials)
@@ -45,6 +49,9 @@ def _material_names(scene: Scene) -> list[str]:
 
 def to_mtl(scene: Scene) -> str:
     """Return Wavefront MTL material library text representation for a baked scene.
+
+    Material names are case-sensitive; collisions use ``_<1-based material index>``
+    followed by ``_<n>`` when that candidate is also reserved.
 
     Args:
         scene: The result of :meth:`SkpFile.build_scene`.
@@ -91,6 +98,9 @@ def to_mtl(scene: Scene) -> str:
 
 def to_obj(scene: Scene, mtl_filename: str | None = None) -> str:
     """Return Wavefront OBJ text representation for a baked scene.
+
+    Material names are case-sensitive; collisions use ``_<1-based material index>``
+    followed by ``_<n>`` when that candidate is also reserved.
 
     Args:
         scene: The result of :meth:`SkpFile.build_scene`.
