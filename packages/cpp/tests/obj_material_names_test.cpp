@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-
 #include <set>
 #include <sstream>
 #include <string>
