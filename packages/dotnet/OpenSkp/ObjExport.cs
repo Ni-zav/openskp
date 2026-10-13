@@ -54,6 +54,8 @@ namespace OpenSkp
 
         /// <summary>
         /// Convert a baked <see cref="Scene"/>'s materials into Wavefront MTL text format.
+        /// Identifiers are case-sensitive; collisions gain _&lt;1-based material index&gt;,
+        /// then an additional _&lt;n&gt; if necessary. Other names remain unchanged.
         /// </summary>
         /// <param name="scene">The baked scene returned by <see cref="SkpFile.BuildScene(string, SkpParseOptions?)"/>.</param>
         /// <returns>The formatted Wavefront MTL text string.</returns>
@@ -116,6 +118,7 @@ namespace OpenSkp
 
         /// <summary>
         /// Convert a baked <see cref="Scene"/> into Wavefront OBJ text format.
+        /// Material references use the same unique identifiers as the MTL library.
         /// </summary>
         /// <param name="scene">The baked scene returned by <see cref="SkpFile.BuildScene(string, SkpParseOptions?)"/>.</param>
         /// <param name="mtlFilename">Optional companion .mtl filename to reference.</param>
