@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — all five ports: OBJ material identifiers remain distinct after sanitization (#423)
+
+OBJ/MTL export now reserves sanitized source names before assigning unique
+material identifiers. A colliding name gains `_<1-based material index>`,
+with an additional `_<n>` when that identifier is already used or reserved.
+Both `newmtl` and `usemtl` use the same resolved names. Non-conflicting
+names stay unchanged; comparisons remain case-sensitive. Blank names after
+trimming fall back to `default_material`, while punctuation is replaced with
+underscores as before.
+
 ### Fixed — Python, TypeScript, Dart, .NET: PLY export preserves glTF material colors (#421)
 
 PLY exporters in these four ports previously read `baseColorFactor` from the
