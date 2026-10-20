@@ -1524,6 +1524,133 @@ def _extract_texture(zf, xml_name, mat_elem, ns):
 
 # ── Full parse pipeline ──────────────────────────────────────────────────
 
+
+def _collect_vff_record(top, layer_id_to_name, layer_hidden,
+                        material_id_to_name, defs_dict, vertex_positions,
+                        instance_world, page_node):
+    """Collect the six VFF metadata views with one depth-first traversal.
+
+    The original collectors all walked each top-level definition independently.
+    Keep their per-tag behaviors (including world-transform propagation and
+    first-scene selection), while reading each TLV node's fields only once.
+    The caller still discards the whole record after this pass.
+    """
+    def walk(nodes, parent):
+        nonlocal page_node
+        for el in nodes:
+            tag = el.tag
+            children = el.children
+
+            if tag == '993A':
+                for child in children:
+                    if child.tag != '8C3C':
+                        continue
+                    dc05 = find_child_tag(child.children, 'DC05')
+                    name_node = find_child_tag(child.children, '8D3C')
+                    if dc05 and name_node:
+                        payload = dc05.payload
+                        if payload.startswith(b'\xde\x05'):
+                            de05_len = read_u32(payload, 2)
+                            l_id = parse_var_int(payload, 6, de05_len)
+                        else:
+                            l_id = parse_var_int(payload, 0, len(payload))
+                        l_name = name_node.payload.decode('utf-8', errors='replace')
+                        layer_id_to_name[l_id] = l_name
+                        hidden_node = find_child_tag(child.children, '8E3C')
+                        if hidden_node and hidden_node.payload:
+                            layer_hidden[l_name] = hidden_node.payload[0] == 1
+
+            if tag == 'C832':
+                dc05 = find_child_tag(children, 'DC05')
+                name_node = find_child_tag(children, 'CC32')
+                if dc05 and name_node:
+                    payload = dc05.payload
+                    if payload.startswith(b'\xde\x05'):
+                        de05_len = read_u32(payload, 2)
+                        m_id = parse_var_int(payload, 6, de05_len)
+                    else:
+                        m_id = parse_var_int(payload, 0, len(payload))
+                    material_id_to_name[m_id] = name_node.payload.decode(
+                        'utf-8', errors='replace')
+
+            if tag == '7C15':
+                guid = None
+                name = None
+                faces_camera = False
+                shadows_face_sun = False
+                is_image = False
+                for child in children:
+                    if child.tag == '7D15' and len(child.payload) == 16:
+                        guid = child.payload.hex().upper()
+                    elif child.tag == '7E15':
+                        name = child.payload.decode('utf-8', errors='replace')
+                    elif child.tag == '581B':
+                        pos = 0
+                        pl = child.payload
+                        while pos <= len(pl) - 6:
+                            sub_tag = pl[pos:pos+2].hex().upper()
+                            sub_size = read_u32(pl, pos+2)
+                            if pos + 6 + sub_size > len(pl):
+                                break
+                            if sub_tag == '5D1B' and sub_size >= 1:
+                                faces_camera = parse_var_int(
+                                    pl, pos+6, sub_size) == 1
+                            elif sub_tag == '5E1B' and sub_size >= 1:
+                                shadows_face_sun = parse_var_int(
+                                    pl, pos+6, sub_size) == 1
+                            pos += 6 + sub_size
+                    elif child.tag == '8315' and child.payload:
+                        is_image = parse_var_int(
+                            child.payload, 0, len(child.payload)) == 2
+                ent_id = extract_entity_id(el)
+                builder = _GeometryBuilder()
+                _extract_geometry_from_nodes(children, builder)
+                defs_dict[ent_id] = {
+                    'guid': guid, 'name': name,
+                    'always_faces_camera': faces_camera,
+                    'shadows_face_sun': shadows_face_sun,
+                    'is_image': is_image, 'builder': builder,
+                }
+
+            if tag == 'C409':
+                dc05 = find_child_tag(children, 'DC05')
+                c509 = find_child_tag(children, 'C509')
+                if dc05 and c509 and len(c509.payload) == 24:
+                    p = dc05.payload
+                    if p[:2] == b'\xde\x05':
+                        idlen = read_u32(p, 2)
+                        idb = p[6:6 + idlen]
+                    else:
+                        idb = p
+                    vertex_positions[idb.hex()] = struct.unpack(
+                        '<3d', c509.payload)
+
+            here = parent
+            if tag == '6419':
+                d007 = find_child_tag(children, 'D007')
+                dc05 = find_child_tag(d007.children, 'DC05') if d007 else None
+                iid = None
+                if dc05:
+                    p = dc05.payload
+                    idb = p[6:6 + read_u32(p, 2)] if p[:2] == b'\xde\x05' else p
+                    iid = idb.hex()
+                m = find_child_tag(children, '6619')
+                mat = list(struct.unpack('<13d', m.payload)) \
+                    if m and len(m.payload) == 104 else None
+                here = multiply_matrices(parent, mat) if mat else parent
+                if iid:
+                    instance_world[iid] = here
+
+            if page_node is None and tag == '0702':
+                page_node = el
+
+            if children:
+                walk(children, here)
+
+    walk([top], None)
+    return page_node
+
+
 def full_parse(skp_path: str) -> Dict[str, Any]:
     """Run the complete SKP parsing pipeline.
 
@@ -1709,102 +1836,10 @@ def full_parse(skp_path: str) -> Dict[str, Any]:
     # the (comparatively modest, ~1x) cost of decompressing model.dat
     # itself. See iter_top_level_lazy() for the mechanics.
 
-    # Layer ID -> name
+    # Per-record metadata structures, filled by one recursive VFF walk.
     layer_id_to_name = {}
-    def collect_layers(nodes):
-        for el in nodes:
-            if el['tag'] == '993A':
-                for child in el['children']:
-                    if child['tag'] == '8C3C':
-                        dc05 = find_child_tag(child['children'], 'DC05')
-                        name_node = find_child_tag(child['children'], '8D3C')
-                        if dc05 and name_node:
-                            payload = dc05['payload']
-                            if payload.startswith(bytes([0xDE, 0x05])):
-                                de05_len = read_u32(payload, 2)
-                                l_id = parse_var_int(payload, 6, de05_len)
-                            else:
-                                l_id = parse_var_int(payload, 0, len(payload))
-                            l_name = name_node['payload'].decode('utf-8', errors='replace')
-                            layer_id_to_name[l_id] = l_name
-                            # 8E3C: a single byte, 1 = hidden / 0 = visible -
-                            # confirmed byte-for-byte against a real
-                            # production file's own Tags panel (openskp
-                            # FrameSmart pipeline report, 2026-09-08): every
-                            # layer showing a hollow (hidden) eye icon had
-                            # 8E3C=01, every visible one had 8E3C=00. This is
-                            # the VFF-format counterpart of the legacy
-                            # format's already-known layer-hidden flag.
-                            hidden_node = find_child_tag(child['children'], '8E3C')
-                            if hidden_node and hidden_node['payload']:
-                                layer_hidden[l_name] = hidden_node['payload'][0] == 1
-            collect_layers(el['children'])
-
-    # Material ID -> name
     material_id_to_name = {}
-    def collect_material_ids(nodes):
-        for el in nodes:
-            if el['tag'] == 'C832':
-                dc05 = find_child_tag(el['children'], 'DC05')
-                name_node = find_child_tag(el['children'], 'CC32')
-                if dc05 and name_node:
-                    payload = dc05['payload']
-                    if payload.startswith(bytes([0xDE, 0x05])):
-                        de05_len = read_u32(payload, 2)
-                        m_id = parse_var_int(payload, 6, de05_len)
-                    else:
-                        m_id = parse_var_int(payload, 0, len(payload))
-                    m_name = name_node['payload'].decode('utf-8', errors='replace')
-                    material_id_to_name[m_id] = m_name
-            collect_material_ids(el['children'])
-
-    # Component definitions
     defs_dict = {}
-    def collect_defs(nodes):
-        for el in nodes:
-            if el['tag'] == '7C15':
-                guid = None
-                name = None
-                faces_camera = False
-                shadows_face_sun = False
-                is_image = False
-                for child in el['children']:
-                    if child['tag'] == '7D15' and len(child['payload']) == 16:
-                        guid = child['payload'].hex().upper()
-                    elif child['tag'] == '7E15':
-                        name = child['payload'].decode('utf-8', errors='replace')
-                    elif child['tag'] == '581B':
-                        # Component behavior flags: sub-TLV 5D1B == 1 marks
-                        # "always faces camera" (2D people/tree cut-outs);
-                        # its companion 5E1B is "shadows face sun".
-                        pos = 0
-                        pl = child['payload']
-                        while pos <= len(pl) - 6:
-                            sub_tag = pl[pos:pos+2].hex().upper()
-                            sub_size = read_u32(pl, pos+2)
-                            if pos + 6 + sub_size > len(pl):
-                                break
-                            if sub_tag == '5D1B' and sub_size >= 1:
-                                faces_camera = parse_var_int(
-                                    pl, pos+6, sub_size) == 1
-                            elif sub_tag == '5E1B' and sub_size >= 1:
-                                shadows_face_sun = parse_var_int(
-                                    pl, pos+6, sub_size) == 1
-                            pos += 6 + sub_size
-                    elif child['tag'] == '8315' and child['payload']:
-                        # Definition kind: observed 0/1 for ordinary
-                        # component/group definitions, 2 for the quad
-                        # definition backing an Image entity.
-                        is_image = parse_var_int(
-                            child['payload'], 0, len(child['payload'])) == 2
-                ent_id = extract_entity_id(el)
-                builder = _GeometryBuilder()
-                _extract_geometry_from_nodes(el['children'], builder)
-                defs_dict[ent_id] = {'guid': guid, 'name': name,
-                                     'always_faces_camera': faces_camera,
-                                     'shadows_face_sun': shadows_face_sun,
-                                     'is_image': is_image, 'builder': builder}
-            collect_defs(el['children'])
 
     root_builder = _GeometryBuilder()
     vertex_positions = {}
@@ -1813,13 +1848,9 @@ def full_parse(skp_path: str) -> Dict[str, Any]:
 
     for index, total, el in iter_top_level_lazy(model_dat, 0, len(model_dat), CONTAINER_TAGS):
         try:
-            collect_layers([el])
-            collect_material_ids([el])
-            collect_defs([el])
-            _scan_vertex_positions(el, vertex_positions)
-            _scan_instance_transforms(el, instance_world)
-            if page_node is None:
-                page_node = _find_page_node(el)
+            page_node = _collect_vff_record(
+                el, layer_id_to_name, layer_hidden, material_id_to_name,
+                defs_dict, vertex_positions, instance_world, page_node)
             if el['tag'] == 'F601':
                 _extract_geometry_from_nodes(el['children'], root_builder)
         except Exception as e:
