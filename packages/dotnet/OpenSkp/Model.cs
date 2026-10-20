@@ -184,8 +184,7 @@ namespace OpenSkp
     }
 
     /// <summary>A construction/guide line (SketchUp's Construction Line
-    /// tool). Legacy (pre-2021) files only - the VFF (2021+) reader does
-    /// not currently recognize this entity.
+    /// tool). Supported in both legacy and VFF (2021+) models.
     ///
     /// Stored internally (and here, unchanged) as a point + normalized
     /// direction + two signed distance parameters along that direction
