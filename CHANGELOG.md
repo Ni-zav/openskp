@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Python, TypeScript, Dart, .NET: PLY export preserves glTF material colors (#421)
+
+PLY exporters in these four ports previously read `baseColorFactor` from the
+material's top level rather than `pbrMetallicRoughness.baseColorFactor`.
+Consequently, colored geometry exported as the default gray RGBA in both ASCII
+and binary PLY. The exporters now read the nested glTF PBR color while retaining
+the fallback for materials without a usable color. C++ was already correct.
+
 ### Changed — TypeScript: builder edges are stored in flat typed arrays (openskp#201)
 
 Both readers kept each definition's edges as `Map<id, [v1, v2]>`: a JS array
