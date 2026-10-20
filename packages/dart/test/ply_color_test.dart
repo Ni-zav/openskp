@@ -28,6 +28,7 @@ void main() {
     final bytes = toPlyBinary(scene);
     final start = String.fromCharCodes(bytes).indexOf('end_header\n') +
         'end_header\n'.length;
+    // 3 position floats + 3 normal floats + 2 UV floats = 32 bytes before RGBA.
     expect(bytes.sublist(start + 32, start + 36), [255, 0, 0, 128]);
   });
 }

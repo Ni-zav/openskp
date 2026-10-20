@@ -36,13 +36,19 @@ namespace OpenSkp.Tests
                 }
             };
 
-            var ascii = PlyExport.ToPlyAscii(scene);
-            var start = ascii.IndexOf("end_header\n", StringComparison.Ordinal) + "end_header\n".Length;
+            // The ASCII writer uses Environment.NewLine, which is CRLF on Windows.
+            var ascii = PlyExport.ToPlyAscii(scene).Replace("\r\n", "\n");
+            var start = ascii.IndexOf("end_header\n", StringComparison.Ordinal);
+            Assert.True(start >= 0, "Expected the ASCII PLY header terminator");
+            start += "end_header\n".Length;
             Assert.EndsWith("255 0 0 128", ascii.Substring(start).Split('\n')[0].TrimEnd('\r'));
 
             var binary = PlyExport.ToPlyBinary(scene);
             var header = Encoding.ASCII.GetString(binary);
-            start = header.IndexOf("end_header\n", StringComparison.Ordinal) + "end_header\n".Length;
+            start = header.IndexOf("end_header\n", StringComparison.Ordinal);
+            Assert.True(start >= 0, "Expected the binary PLY header terminator");
+            start += "end_header\n".Length;
+            // 3 position floats + 3 normal floats + 2 UV floats = 32 bytes per vertex before RGBA.
             Assert.Equal(new byte[] { 255, 0, 0, 128 }, binary[(start + 32)..(start + 36)]);
         }
     }
