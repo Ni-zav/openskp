@@ -97,8 +97,7 @@ export interface ConstructionLine {
 }
 
 /** A construction/guide point (SketchUp's Construction Point tool).
- * Legacy (pre-2021) files only - the VFF (2021+) reader does not
- * currently recognize this entity. */
+ * Legacy and VFF (2021+) files are both supported. */
 export interface ConstructionPoint {
   /** The point's position, in inches (world space). */
   position: [number, number, number];
