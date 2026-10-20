@@ -270,8 +270,7 @@ class ConstructionLine {
 }
 
 /// A construction/guide point (SketchUp's Construction Point tool).
-/// Legacy (pre-2021) files only - the VFF (2021+) reader does not
-/// currently recognize this entity.
+/// Both legacy and VFF (2021+) files are supported.
 class ConstructionPoint {
   /// The point's position, in inches (world space).
   final (double, double, double) position;
